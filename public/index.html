@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Technovahub - WhatsApp Messages</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    async function loadMessages() {
+      try {
+        const res = await fetch('/messages');
+        const data = await res.json();
+        const container = document.getElementById('msg-container');
+
+        if (data.length === 0) {
+          container.innerHTML = `<p class="text-gray-500">No messages yet.</p>`;
+          return;
+        }
+
+        container.innerHTML = data.reverse().map(msg => `
+          <div class="bg-white p-4 rounded-lg shadow-md mb-4 border border-gray-200">
+            <p><strong>📱 From:</strong> ${msg.sender}</p>
+            <p><strong>💬 Message:</strong> ${msg.text}</p>
+            <p class="text-sm text-gray-500 mt-1">🕒 ${msg.time}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading messages:', err);
+        document.getElementById('msg-container').innerHTML = `<p class="text-red-500">Error fetching messages</p>`;
+      }
+    }
+
+    // Refresh messages every 3 seconds
+    setInterval(loadMessages, 3000);
+    window.onload = loadMessages;
+  </script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+  <div class="max-w-2xl mx-auto py-10 px-6">
+    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">📨 WhatsApp Messages - Technovahub</h1>
+    <div id="msg-container"></div>
+  </div>
+</body>
+</html>
