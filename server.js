@@ -1,30 +1,21 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
-
+const cors = require('cors');
 const app = express();
-const PORT = process.env.PORT || 8080;
-const VERIFY_TOKEN = 'sakthi123';
+const PORT = process.env.PORT || 10000;
 
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
+app.use(express.static('public'));
+app.use(express.json());
 
-const messagesFile = path.join(__dirname, 'messages.json');
+let clients = [];
 
-// Load messages from file if it exists
-let messages = [];
-if (fs.existsSync(messagesFile)) {
-  messages = JSON.parse(fs.readFileSync(messagesFile));
-}
-
-// Webhook verification
 app.get('/webhook', (req, res) => {
+  const VERIFY_TOKEN = 'sakthi123';
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode && token && mode === 'subscribe' && token === VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     console.log('✅ Webhook verified');
     res.status(200).send(challenge);
   } else {
@@ -32,40 +23,41 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// Webhook to receive WhatsApp messages
 app.post('/webhook', (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0]?.value?.messages;
+  const msg = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const contact = req.body?.entry?.[0]?.changes?.[0]?.value?.contacts?.[0];
 
-    if (changes && changes.length > 0) {
-      const msg = changes[0];
-      const from = msg.from;
-      const text = msg.text?.body || 'Media or non-text message';
+  if (msg && msg.text && contact) {
+    const messageData = {
+      from: contact.wa_id,
+      name: contact.profile.name || "Unknown",
+      text: msg.text.body,
+      time: new Date().toLocaleTimeString()
+    };
 
-      const newMsg = {
-        id: Date.now(),
-        from,
-        text,
-      };
+    console.log("📩 Received:", messageData);
 
-      messages.push(newMsg);
-      fs.writeFileSync(messagesFile, JSON.stringify(messages, null, 2));
-      console.log('📥 New message received:', newMsg);
-    }
-  } catch (err) {
-    console.error('❌ Error processing message:', err);
+    // Broadcast to all connected frontend clients
+    clients.forEach(client => client.res.write(`data: ${JSON.stringify(messageData)}\n\n`));
   }
 
   res.sendStatus(200);
 });
 
-// API to get all stored messages
-app.get('/messages', (req, res) => {
-  res.json(messages);
+app.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const clientId = Date.now();
+  clients.push({ id: clientId, res });
+
+  req.on('close', () => {
+    clients = clients.filter(client => client.id !== clientId);
+  });
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
