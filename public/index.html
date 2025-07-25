@@ -2,26 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WhatsApp Inbox - Sakthi</title>
-  <script>
-    async function fetchMessages() {
-      const res = await fetch('/messages');
-      const data = await res.json();
-      const list = document.getElementById('msgList');
-      list.innerHTML = '';
-      data.forEach(msg => {
-        const li = document.createElement('li');
-        li.textContent = `[${msg.from}] ${msg.text}`;
-        list.appendChild(li);
-      });
-    }
-
-    setInterval(fetchMessages, 3000);
-    window.onload = fetchMessages;
-  </script>
+  <title>Live WhatsApp Inbox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body style="font-family: sans-serif;">
-  <h1>📬 WhatsApp Inbox (Live)</h1>
-  <ul id="msgList"></ul>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-4">
+    <h1 class="text-2xl font-bold text-center mb-4">📬 WhatsApp Inbox (Live)</h1>
+    <div id="messages" class="space-y-3 max-h-[500px] overflow-y-auto border p-2 rounded"></div>
+  </div>
+
+  <script>
+    const messagesDiv = document.getElementById("messages");
+    const evtSource = new EventSource("/events");
+
+    evtSource.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const div = document.createElement("div");
+      div.className = "bg-green-100 p-3 rounded shadow";
+
+      div.innerHTML = `
+        <p><strong>From:</strong> ${msg.name} (${msg.from})</p>
+        <p><strong>Message:</strong> ${msg.text}</p>
+        <p class="text-sm text-gray-500">${msg.time}</p>
+      `;
+
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    };
+  </script>
 </body>
 </html>
